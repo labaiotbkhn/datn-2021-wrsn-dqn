@@ -6,6 +6,7 @@ def updateMemories(q_learning, deep_qlearning):
     reward = q_learning.reward[state_id]
     input_state_dqn = np.reshape(q_learning.input_state_dqn, [
                                  1, deep_qlearning.state_size])
+    print("reward: {}".format(reward))
 
     deep_qlearning.memorize(input_state_dqn, state_id, reward, input_state_dqn)
 
@@ -25,5 +26,4 @@ def _build_input_state(network):
     for nd in network.node:
         list_state.append(nd.energy)
         list_state.append(nd.avg_energy)
-
     return np.array(list_state)

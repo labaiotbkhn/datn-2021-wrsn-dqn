@@ -70,7 +70,7 @@ class DQN:
 
     def experience_replay(self, batch_size):
         # get minibatch memories from 0 => last memory -1
-        minibatch = random.sample(self.memory[:len(self.memory)-1], batch_size)
+        minibatch = random.sample(collections.deque(itertools.islice(self.memory, 0, len(self.memory)-1)), batch_size)
 
         for state, action, reward, next_state in minibatch:
             # predict state cordination (X, y) of MC
@@ -84,7 +84,7 @@ class DQN:
             self.epsilon *= self.epsilon_decay
 
     def training_replay(self):
-        if len(self.memory) >= self.batch_size:
+        if len(self.memory) > self.batch_size:
             print("trainin with replay: ", self.steps_to_update_target_model)
             self.experience_replay(self.batch_size)
         pass
@@ -119,7 +119,10 @@ class DQN:
         self.input_state = _build_input_state(network)
         self.input_state = np.reshape(self.input_state, [1, self.state_size])
         # update next_state in last memories:
-        self.memory[-1][3] = self.input_state
+        last_memory = list(self.memory[-1])
+        last_memory[3] = self.input_state
+        self.memory[-1] = tuple(last_memory)
+
         next_action_id = self.choose_next_state(network, self.input_state)
 
         # calculate reward
@@ -146,7 +149,6 @@ class DQN:
         if (self.steps_to_update_target_model - 1) % 100 == 0:
             self.update_target_model()
             print("update weights: ", self.steps_to_update_target_model)
-        print("next state =",
-              self.action_list[self.state], self.state, charging_time)
+        print("next state =({}), {}, charging_time: {}).".format(self.action_list[self.state], self.state, charging_time))
 
         return self.action_list[self.state], charging_time

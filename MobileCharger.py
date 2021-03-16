@@ -3,7 +3,7 @@ from scipy.spatial import distance
 
 import Parameter as para
 from MobileCharger_Method import get_location, charging
-
+import numpy as np
 class MobileCharger:
     def __init__(self, energy=None, e_move=None, start=para.depot, end=para.depot, velocity=None,
                  e_self_charge=None, capacity=None):
@@ -57,6 +57,8 @@ class MobileCharger:
             print("Q learning update")
             next_location, charging_time = optimizer.update(network)
             next_state_last_memories_dqn = optimizer.input_state_dqn
+            next_state_last_memories_dqn = np.reshape(next_state_last_memories_dqn, [1, deep_optimizer.state_size])
+
             # update last_memory
             updateNextAction(deep_optimizer, next_state_last_memories_dqn)
             updateMemories(optimizer, deep_optimizer)

@@ -23,6 +23,7 @@ class Q_learning:
         self.set_reward(reward_func=reward_func, network=network)
         self.q_table[self.state] = (1 - alpha) * self.q_table[self.state] + alpha * (
                 self.reward + gamma * self.q_max(q_max_func))
+        print("q_table :", self.q_table[self.state])
         self.choose_next_state(network)
         if self.state == len(self.action_list) - 1:
             charging_time = (network.mc.capacity - network.mc.energy) / network.mc.e_self_charge

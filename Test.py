@@ -5,18 +5,13 @@ import pandas as pd
 from ast import literal_eval
 from MobileCharger import MobileCharger
 from Q__Learning import Q_learning
-<<<<<<< HEAD
-=======
 from DQN import DQN
->>>>>>> 32e4f60 (update DQN)
 from Inma import Inma
 import csv
 from scipy.stats import sem, t
 from scipy import mean
 
 
-<<<<<<< HEAD
-=======
 def calculate_state_size_dqn(network):
     # energy of sensor
     # comsumption rate of sensor
@@ -25,7 +20,6 @@ def calculate_state_size_dqn(network):
     return 3 + len(network.node) * 2
 
 
->>>>>>> 32e4f60 (update DQN)
 df = pd.read_csv("data/thaydoitileguitin.csv")
 for index in range(1):
     chooser_alpha = open("log/q_learning_confident3.csv", "w")
@@ -50,17 +44,11 @@ for index in range(1):
                            e_self_charge=df.e_mc[index], velocity=df.velocity[index])
         target = [int(item) for item in df.target[index].split(',')]
         net = Network(list_node=list_node, mc=mc, target=target)
-<<<<<<< HEAD
-        print(len(net.node), len(net.target), max(net.target))
-        q_learning = Q_learning(network=net)
-        # inma = Inma()
-        file_name = "log/q_learning_" + str(index) + ".csv"
-        temp = net.simulate(optimizer=q_learning, file_name=file_name)
-=======
         q_learning = Q_learning(network=net)
 
         # calculate state_size for DQN
         state_size = calculate_state_size_dqn(net)
+        print("state_size: ", state_size)
         deep_qlearning = DQN(state_size=state_size,
                              file_name_model="model.h5", network=net)
 
@@ -69,7 +57,6 @@ for index in range(1):
         file_name = "log/q_learning_" + str(index) + ".csv"
         temp = net.simulate(optimizer=q_learning,
                             file_name=file_name, deep_optimizer=deep_qlearning)
->>>>>>> 32e4f60 (update DQN)
         life_time.append(temp)
         result.writerow({"nb run": nb_run, "lifetime": temp})
 
