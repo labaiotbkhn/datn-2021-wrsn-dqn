@@ -5,14 +5,39 @@ from scipy.spatial import distance
 
 import Parameter as para
 from Node_Method import find_receiver
-
+import Fuzzy
 
 def q_max_function(q_table, state):
     temp = [max(row) if index != state else -float("inf") for index, row in enumerate(q_table)]
     return np.asarray(temp)
 
 
-def reward_function(network, q_learning, state, alpha=0.3, receive_func=find_receiver):
+def reward_function(network, q_learning, state, receive_func=find_receiver):
+    """
+    calculate each part of reward
+    :param network:
+    :param q_learning:
+    :param state:
+    :param receive_func:
+    :return: each part of reward and charging time when mc stand at state
+    """
+
+    #fuzzy logic to find alpha
+    d = [distance.euclidean(item.location, q_learning.action_list[state]) for item in
+         network.node]
+    p = [para.alpha / (item + para.beta) ** 2 for item in d]
+    index_negative = [index for index, node in enumerate(network.node) if p[index] < node.avg_energy]
+    E = np.asarray([network.node[index].energy for index in index_negative])
+    pe = np.asarray([p[index] / network.node[index].avg_energy for index in index_negative])
+    if len(index_negative):
+        min_E = min(E)
+        min_pe = min(pe)
+    else:
+        min_E = min([node.energy for node in network.node])
+        min_pe = 1.0
+    alpha = Fuzzy.get_output(min_E, len(index_negative), min_pe)
+    
+    # get charing time, find full path
     charging_time = get_charging_time(network, q_learning, state, alpha)
     w, nb_target_alive = get_weight(network, network.mc, q_learning, state, charging_time, receive_func)
     p = get_charge_per_sec(network, q_learning, state)

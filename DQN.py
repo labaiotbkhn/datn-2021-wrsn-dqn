@@ -6,11 +6,11 @@ from tensorflow.keras.models import Sequential
 import random
 from collections import deque
 from Q_learning_method import *
-from utils import _build_input_state
+from utils import _build_input_state,updateNextAction
 
 
 class DQN:
-    def __init__(self, state_size, file_name_model, nb_action=81, action_func=action_function, network=None, epsilon=1, epsilon_decay=0.995, epsilon_min=0.01, batch_size=32, discount_factor=0.9, num_of_episodes=500):
+    def __init__(self, state_size, file_name_model, nb_action=81, action_func=action_function, network=None, epsilon=1, epsilon_decay=0.995, epsilon_min=0.01, batch_size=32, discount_factor=0.8, num_of_episodes=500):
         self.action_list = action_func(nb_action=nb_action)
         self.state = nb_action
 
@@ -27,26 +27,21 @@ class DQN:
         self.action_size = len(self.action_list)
         self.file_name_model = file_name_model
         self.input_state = None
-        self.batch_size = 8
+        self.batch_size = 16
         self.steps_to_update_target_model = 0
         self.model = self._build_model()
         self.target_model = self._build_model()
         self.reward = np.asarray([0.0 for _ in self.action_list])
         self.reward_max = [0.0 for _ in self.action_list]
 
-    """Huber loss for Q Learning
-    References: https://en.wikipedia.org/wiki/Huber_loss
-                https://www.tensorflow.org/api_docs/python/tf/losses/huber_loss
-    """
 
     def _build_model(self):
         model = Sequential()
         model.add(Dense(256, input_dim=self.state_size, activation="relu"))
-        model.add(Dense(256, activation="relu"))
-        model.add(Dense(256, activation="relu"))
+        model.add(Dense(128, activation="relu"))
         model.add(Dense(self.action_size, activation="linear"))
         model.compile(loss=keras.losses.Huber(), optimizer=keras.optimizers.Adam(
-            lr=self.learning_rate), metrics=['accuracy'])
+            lr=self.learning_rate))
         return model
 
     def update_target_model(self):
@@ -66,6 +61,7 @@ class DQN:
         if np.random.rand() <= self.epsilon:
             return random.randrange(self.action_size)
         act_values = self.model.predict(state)
+        print("Q-value from deep Q learning: ",act_values)
         return np.argmax(act_values[0])
 
     def experience_replay(self, batch_size):
@@ -85,6 +81,7 @@ class DQN:
 
     def training_replay(self):
         if len(self.memory) > self.batch_size:
+            self.steps_to_update_target_model +=1
             print("trainin with replay: ", self.steps_to_update_target_model)
             self.experience_replay(self.batch_size)
         pass
@@ -113,24 +110,22 @@ class DQN:
     def update(self, network, alpha=0.5, gamma=0.5, q_max_func=q_max_function, reward_func=reward_function):
         if not len(network.mc.list_request):
             return self.action_list[self.state], 0.0
-        # if self.input_state is None:
-        #     self.input_state  = network.mc.current
 
         self.input_state = _build_input_state(network)
         self.input_state = np.reshape(self.input_state, [1, self.state_size])
-        # update next_state in last memories:
-        last_memory = list(self.memory[-1])
-        last_memory[3] = self.input_state
-        self.memory[-1] = tuple(last_memory)
+
+        # calculate reward for next_action in previous state
+        self.set_reward(reward_func=reward_func, network=network)
+        reward = self.reward[self.state]
+
+        # update next_state + reward in last memories:
+        updateNextAction(self, self.input_state, reward)
 
         next_action_id = self.choose_next_state(network, self.input_state)
 
-        # calculate reward
-        self.set_reward(reward_func=reward_func, network=network)
-        reward = self.reward[next_action_id]
 
         # update memories temporary
-        self.memorize(self.input_state, self.state, reward, self.input_state)
+        self.memorize(self.input_state,next_action_id, reward, self.input_state)
         # update input_state
         # self.input_state = next_state
         self.state = next_action_id
@@ -146,7 +141,7 @@ class DQN:
         self.training_replay()
 
         # update weights target after time % 100 == 0 update
-        if (self.steps_to_update_target_model - 1) % 100 == 0:
+        if (self.steps_to_update_target_model - 1) % 40 == 0:
             self.update_target_model()
             print("update weights: ", self.steps_to_update_target_model)
         print("next state =({}), {}, charging_time: {}).".format(self.action_list[self.state], self.state, charging_time))

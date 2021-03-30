@@ -14,6 +14,7 @@ class Q_learning:
         self.reward = np.asarray([0.0 for _ in self.action_list])
         self.reward_max = [0.0 for _ in self.action_list]
         self.input_state_dqn = None
+        self.reward_dqn = 0
 
     def update(self, network, alpha=0.5, gamma=0.5, q_max_func=q_max_function, reward_func=reward_function):
 
@@ -21,9 +22,10 @@ class Q_learning:
             return self.action_list[self.state], 0.0
         self.input_state_dqn = _build_input_state(network)
         self.set_reward(reward_func=reward_func, network=network)
+        # calculate reward for next_action with previous state
+        self.reward_dqn = self.reward[self.state]
         self.q_table[self.state] = (1 - alpha) * self.q_table[self.state] + alpha * (
                 self.reward + gamma * self.q_max(q_max_func))
-        print("q_table :", self.q_table[self.state])
         self.choose_next_state(network)
         if self.state == len(self.action_list) - 1:
             charging_time = (network.mc.capacity - network.mc.energy) / network.mc.e_self_charge

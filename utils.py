@@ -2,19 +2,21 @@ import numpy as np
 
 
 def updateMemories(q_learning, deep_qlearning):
-    state_id = q_learning.state
-    reward = q_learning.reward[state_id]
+    next_action = q_learning.state
+    reward = q_learning.reward[next_action]
     input_state_dqn = np.reshape(q_learning.input_state_dqn, [
                                  1, deep_qlearning.state_size])
     print("reward: {}".format(reward))
 
-    deep_qlearning.memorize(input_state_dqn, state_id, reward, input_state_dqn)
+    #update temporary memories
+    deep_qlearning.memorize(input_state_dqn, next_action, reward, input_state_dqn)
 
 
-def updateNextAction(deep_qlearning, next_state):
+def updateNextAction(deep_qlearning, next_state, reward):
     if len(deep_qlearning.memory) > 0:
         last_memory = list(deep_qlearning.memory[-1])
         last_memory[3] = next_state
+        last_memory[2] = reward
         deep_qlearning.memory[-1] = tuple(last_memory)
 
 
