@@ -5,6 +5,7 @@ from Node_Method import find_receiver
 from Q_learning_method import init_function, action_function, q_max_function, reward_function
 from utils import _build_input_state
 
+
 class Q_learning:
     def __init__(self, init_func=init_function, nb_action=81, action_func=action_function, network=None):
         self.action_list = action_func(nb_action=nb_action)
@@ -25,13 +26,15 @@ class Q_learning:
         # calculate reward for next_action with previous state
         self.reward_dqn = self.reward[self.state]
         self.q_table[self.state] = (1 - alpha) * self.q_table[self.state] + alpha * (
-                self.reward + gamma * self.q_max(q_max_func))
+            self.reward + gamma * self.q_max(q_max_func))
         self.choose_next_state(network)
         if self.state == len(self.action_list) - 1:
-            charging_time = (network.mc.capacity - network.mc.energy) / network.mc.e_self_charge
+            charging_time = (network.mc.capacity -
+                             network.mc.energy) / network.mc.e_self_charge
         else:
             charging_time = self.charging_time[self.state]
-        print("next state =", self.action_list[self.state], self.state, charging_time)
+        print("next state =",
+              self.action_list[self.state], self.state, charging_time)
         # print(self.charging_time)
         return self.action_list[self.state], charging_time
 
@@ -43,7 +46,8 @@ class Q_learning:
         second = np.asarray([0.0 for _ in self.action_list], dtype=float)
         third = np.asarray([0.0 for _ in self.action_list], dtype=float)
         for index, _ in enumerate(self.q_table):
-            temp = reward_func(network=network, q_learning=self, state=index, receive_func=find_receiver)
+            temp = reward_func(network=network, q_learning=self,
+                               state=index, receive_func=find_receiver)
             first[index] = temp[0]
             second[index] = temp[1]
             third[index] = temp[2]
@@ -59,6 +63,8 @@ class Q_learning:
         if network.mc.energy < 10:
             self.state = len(self.q_table) - 1
         else:
+            print(
+                "Q-value of Q-learning method :{}".format(self.q_table[self.state]))
             self.state = np.argmax(self.q_table[self.state])
             # print(self.reward_max[self.state])
             # print(self.action_list[self.state])

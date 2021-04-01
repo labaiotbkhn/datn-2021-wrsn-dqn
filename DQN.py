@@ -6,7 +6,7 @@ from tensorflow.keras.models import Sequential
 import random
 from collections import deque
 from Q_learning_method import *
-from utils import _build_input_state,updateNextAction
+from utils import _build_input_state, updateNextAction
 
 
 class DQN:
@@ -27,13 +27,12 @@ class DQN:
         self.action_size = len(self.action_list)
         self.file_name_model = file_name_model
         self.input_state = None
-        self.batch_size = 16
+        self.batch_size = 32
         self.steps_to_update_target_model = 0
         self.model = self._build_model()
         self.target_model = self._build_model()
         self.reward = np.asarray([0.0 for _ in self.action_list])
         self.reward_max = [0.0 for _ in self.action_list]
-
 
     def _build_model(self):
         model = Sequential()
@@ -58,15 +57,17 @@ class DQN:
         if network.mc.energy < 10:
             return len(self.q_table) - 1
 
-        if np.random.rand() <= self.epsilon:
-            return random.randrange(self.action_size)
+        # if np.random.rand() <= self.epsilon:
+        #     return random.randrange(self.action_size)
         act_values = self.model.predict(state)
-        print("Q-value from deep Q learning: ",act_values)
+        print("Q-value from deep Q learning: ", act_values)
+
         return np.argmax(act_values[0])
 
     def experience_replay(self, batch_size):
         # get minibatch memories from 0 => last memory -1
-        minibatch = random.sample(collections.deque(itertools.islice(self.memory, 0, len(self.memory)-1)), batch_size)
+        minibatch = random.sample(collections.deque(
+            itertools.islice(self.memory, 0, len(self.memory)-1)), batch_size)
 
         for state, action, reward, next_state in minibatch:
             # predict state cordination (X, y) of MC
@@ -81,13 +82,18 @@ class DQN:
 
     def training_replay(self):
         if len(self.memory) > self.batch_size:
-            self.steps_to_update_target_model +=1
+            self.steps_to_update_target_model += 1
             print("trainin with replay: ", self.steps_to_update_target_model)
             self.experience_replay(self.batch_size)
+            if (self.steps_to_update_target_model - 1) % 30 == 0:
+                self.update_target_model()
         pass
 
     def load(self, name):
         self.model.load_weights(name)
+
+    def save_weights(self, name):
+        self.target_model.save_weights(name)
 
     def set_reward(self, reward_func=reward_function, network=None,):
         # create reward with state
@@ -123,9 +129,9 @@ class DQN:
 
         next_action_id = self.choose_next_state(network, self.input_state)
 
-
         # update memories temporary
-        self.memorize(self.input_state,next_action_id, reward, self.input_state)
+        self.memorize(self.input_state, next_action_id,
+                      reward, self.input_state)
         # update input_state
         # self.input_state = next_state
         self.state = next_action_id
@@ -141,9 +147,10 @@ class DQN:
         self.training_replay()
 
         # update weights target after time % 100 == 0 update
-        if (self.steps_to_update_target_model - 1) % 40 == 0:
-            self.update_target_model()
-            print("update weights: ", self.steps_to_update_target_model)
-        print("next state =({}), {}, charging_time: {}).".format(self.action_list[self.state], self.state, charging_time))
+        # if (self.steps_to_update_target_model - 1) % 40 == 0:
+        #     self.update_target_model()
+        print("update weights: ", self.steps_to_update_target_model)
+        print("next state =({}), {}, charging_time: {}).".format(
+            self.action_list[self.state], self.state, charging_time))
 
         return self.action_list[self.state], charging_time
