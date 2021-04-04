@@ -48,9 +48,6 @@ class MobileCharger:
             self.is_self_charge = False
 
     def get_next_location(self, network, time_stem, optimizer=None, deep_optimizer=None):
-        # check steps_to_update_target_model in deep Q learning
-        # deep_optimizer.steps_to_update_target_model = time_stem
-
         if(len(deep_optimizer.memory)) > 224:
             print("Update with deep Q leatning")
             next_location, charging_time = deep_optimizer.update(network)
@@ -61,12 +58,12 @@ class MobileCharger:
             next_state_last_memories_dqn = optimizer.input_state_dqn
             next_state_last_memories_dqn = np.reshape(next_state_last_memories_dqn, [
                                                       1, deep_optimizer.state_size])
-            print("reward for last memories_dqn: ", optimizer.reward_dqn)
-            reward_last_memories_dqn = optimizer.reward_dqn
+            print("reward for action with current_state DQN: ",
+                  optimizer.reward_dqn)
             # update last_memory
 
             updateNextAction(
-                deep_optimizer, next_state_last_memories_dqn, reward_last_memories_dqn)
+                deep_optimizer, next_state_last_memories_dqn)
             updateMemories(optimizer, deep_optimizer)
             deep_optimizer.training_replay()
 

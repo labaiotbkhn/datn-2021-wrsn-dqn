@@ -7,8 +7,10 @@ import Parameter as para
 from Node_Method import find_receiver
 import Fuzzy
 
+
 def q_max_function(q_table, state):
-    temp = [max(row) if index != state else -float("inf") for index, row in enumerate(q_table)]
+    temp = [max(row) if index != state else -float("inf")
+            for index, row in enumerate(q_table)]
     return np.asarray(temp)
 
 
@@ -22,13 +24,15 @@ def reward_function(network, q_learning, state, receive_func=find_receiver):
     :return: each part of reward and charging time when mc stand at state
     """
 
-    #fuzzy logic to find alpha
+    # fuzzy logic to find alpha
     d = [distance.euclidean(item.location, q_learning.action_list[state]) for item in
          network.node]
     p = [para.alpha / (item + para.beta) ** 2 for item in d]
-    index_negative = [index for index, node in enumerate(network.node) if p[index] < node.avg_energy]
+    index_negative = [index for index, node in enumerate(
+        network.node) if p[index] < node.avg_energy]
     E = np.asarray([network.node[index].energy for index in index_negative])
-    pe = np.asarray([p[index] / network.node[index].avg_energy for index in index_negative])
+    pe = np.asarray(
+        [p[index] / network.node[index].avg_energy for index in index_negative])
     if len(index_negative):
         min_E = min(E)
         min_pe = min(pe)
@@ -36,14 +40,17 @@ def reward_function(network, q_learning, state, receive_func=find_receiver):
         min_E = min([node.energy for node in network.node])
         min_pe = 1.0
     alpha = Fuzzy.get_output(min_E, len(index_negative), min_pe)
-    
+
     # get charing time, find full path
     charging_time = get_charging_time(network, q_learning, state, alpha)
-    w, nb_target_alive = get_weight(network, network.mc, q_learning, state, charging_time, receive_func)
+    w, nb_target_alive = get_weight(
+        network, network.mc, q_learning, state, charging_time, receive_func)
     p = get_charge_per_sec(network, q_learning, state)
     p_hat = p / np.sum(p)
-    E = np.asarray([network.node[request["id"]].energy for request in network.mc.list_request])
-    e = np.asarray([request["avg_energy"] for request in network.mc.list_request])
+    E = np.asarray(
+        [network.node[request["id"]].energy for request in network.mc.list_request])
+    e = np.asarray([request["avg_energy"]
+                    for request in network.mc.list_request])
     second = nb_target_alive / len(network.target)
     third = np.sum(w * p_hat)
     first = np.sum(e * p / E)
@@ -80,7 +87,7 @@ def get_weight(net, mc, q_learning, action_id, charging_time, receive_func=find_
     w = [0 for _ in mc.list_request]
     for request_id, request in enumerate(mc.list_request):
         temp = (net.node[request["id"]].energy - time_move * request["avg_energy"]) + (
-                p[request_id] - request["avg_energy"]) * charging_time
+            p[request_id] - request["avg_energy"]) * charging_time
         if temp < 0:
             list_dead.append(request["id"])
     for request_id, request in enumerate(mc.list_request):
@@ -176,8 +183,10 @@ def get_charge_per_sec(net, q_learning, state):
 
 def get_charging_time(network=None, q_learning=None, state=None, alpha=0):
     # request_id = [request["id"] for request in network.mc.list_request]
-    time_move = distance.euclidean(network.mc.current, q_learning.action_list[state]) / network.mc.velocity
-    energy_min = network.node[0].energy_thresh + alpha * network.node[0].energy_max
+    time_move = distance.euclidean(
+        network.mc.current, q_learning.action_list[state]) / network.mc.velocity
+    energy_min = network.node[0].energy_thresh + \
+        alpha * network.node[0].energy_max
     s1 = []  # list of node in request list which has positive charge
     s2 = []  # list of node not in request list which has negative charge
     for node in network.node:
@@ -191,21 +200,21 @@ def get_charging_time(network=None, q_learning=None, state=None, alpha=0):
 
     for index, p in s1:
         t.append((energy_min - network.node[index].energy + time_move * network.node[index].avg_energy) / (
-                p - network.node[index].avg_energy))
+            p - network.node[index].avg_energy))
     for index, p in s2:
         t.append((energy_min - network.node[index].energy + time_move * network.node[index].avg_energy) / (
-                p - network.node[index].avg_energy))
+            p - network.node[index].avg_energy))
     dead_list = []
     for item in t:
         nb_dead = 0
         for index, p in s1:
             temp = network.node[index].energy - time_move * network.node[index].avg_energy + (
-                        p - network.node[index].avg_energy) * item
+                p - network.node[index].avg_energy) * item
             if temp < energy_min:
                 nb_dead += 1
         for index, p in s2:
             temp = network.node[index].energy - time_move * network.node[index].avg_energy + (
-                        p - network.node[index].avg_energy) * item
+                p - network.node[index].avg_energy) * item
             if temp < energy_min:
                 nb_dead += 1
         dead_list.append(nb_dead)

@@ -1,0 +1,4 @@
+tensorflow
+Pulp
+scipy
+pandas

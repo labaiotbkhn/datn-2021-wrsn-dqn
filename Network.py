@@ -68,7 +68,7 @@ class Network:
             if (t-1) % 100 == 0:
                 print(t, self.mc.current,
                       self.node[self.find_min_node()].energy)
-                self.check_top_number_nodes(5)
+                self.check_top_number_nodes(10)
             state = self.run_per_second(t, optimizer, deep_optimizer)
             if not (t - 1) % 50:
                 writer.writerow(
@@ -93,7 +93,7 @@ class Network:
             if (t-1) % 100 == 0:
                 print(t, self.mc.current,
                       self.node[self.find_min_node()].energy)
-                self.check_top_number_nodes(5)
+                self.check_top_number_nodes(10)
             state = self.run_per_second(t, optimizer, deep_optimizer)
             current_dead = self.count_dead_node()
             current_package = self.count_package()
@@ -140,12 +140,12 @@ class Network:
         count = count_func(self)
         return count
 
-    def check_top_number_nodes(self, number=5):
+    def check_top_number_nodes(self, number=10):
         distances = [distance.euclidean(
             node.location, self.mc.current) for node in self.node]
         indexs = [i[0]
                   for i in sorted(enumerate(distances), key=lambda x:x[1])][:number]
         print("top 10 node nearest MC")
         for i in indexs:
-            print("The node {} with energy is {}. the MC location is {}".format(
-                self.node[i].location, self.node[i].energy,  self.mc.current))
+            print("The node {} with energy is {}. the MC location is {}. Distance is {}".format(
+                self.node[i].location, self.node[i].energy,  self.mc.current, distances[i]))
