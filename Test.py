@@ -15,9 +15,7 @@ from scipy import mean
 def calculate_state_size_dqn(network):
     # energy of sensor
     # comsumption rate of sensor
-    # position of MC
-    # energy of MC
-    return 3 + len(network.node) * 2
+    return len(network.node) * 2
 
 
 df = pd.read_csv("data/thaydoitileguitin.csv")

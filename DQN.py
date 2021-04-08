@@ -1,5 +1,6 @@
 import numpy as np
 from tensorflow import keras
+
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Input, Flatten, Conv2D, MaxPooling2D, Dense
 from tensorflow.keras.models import Sequential
@@ -7,18 +8,21 @@ import random
 from collections import deque
 from Q_learning_method import *
 from utils import _build_input_state, updateNextAction
+from tensorflow.python.keras.optimizer_v2.rmsprop import RMSprop
+from tensorflow.python.keras.optimizer_v2.adam import Adam
 UPDATE_EVERY = 4
 
 
+
 class DQN:
-    def __init__(self, state_size, file_name_model, nb_action=81, action_func=action_function, network=None, epsilon=1, epsilon_decay=0.7, epsilon_min=0.01, batch_size=32, discount_factor=0.99, num_of_episodes=500):
+    def __init__(self, state_size, file_name_model, nb_action=81, action_func=action_function, network=None, epsilon=1, epsilon_decay=0.995, epsilon_min=0.01, batch_size=32, discount_factor=0.99, num_of_episodes=500):
         self.action_list = action_func(nb_action=nb_action)
         self.state = nb_action
 
         self.charging_time = [0.0 for _ in self.action_list]
         self.reward = 0
         self.reward_max = [0.0 for _ in self.action_list]
-        self.learning_rate = 5e-4
+        self.learning_rate = 1e-4
         self.memory = deque(maxlen=2000)
         self.epsilon = epsilon  # exploration rate
         self.discount_factor = discount_factor  # discount rate
@@ -37,17 +41,19 @@ class DQN:
 
     def _build_model(self):
         model = Sequential()
-        model.add(Dense(256, input_dim=self.state_size, activation="relu"))
-        model.add(Dense(128, activation="relu"))
-        model.add(Dense(64, activation="relu"))
-        model.add(Dense(self.action_size, activation="linear"))
-        model.compile(loss="mse", optimizer=keras.optimizers.Adam(
-            lr=self.learning_rate))
+        model.add(Dense(128, input_dim=self.state_size, activation="relu"))
+        model.add(Dense(128, activation="relu",  kernel_initializer='he_uniform'))
+        model.add(Dense(64, activation="relu",  kernel_initializer='he_uniform'))
+        model.add(Dense(self.action_size, activation="linear",  kernel_initializer='he_uniform'))
+        model.compile(loss=keras.losses.Huber(delta=1, reduction=keras.losses.Reduction.SUM), optimizer=Adam(learning_rate=self.learning_rate))
         return model
 
     def update_target_model(self):
         # copy weights from Main model to Target model
         self.target_model.set_weights(self.model.get_weights())
+    
+    def save_model(self):
+        self.model.save_weights(filepath=self.file_name_model)
 
     def memorize(self, state, action, reward, next_state):
         # update memory in Experience Replay
@@ -115,6 +121,16 @@ class DQN:
         third = third / np.sum(third)
         self.reward = first + second + third
         self.reward_max = list(zip(first, second, third))
+    def updateWeightFromQLearning(self, state, qValue):
+        print("update weights deep NN from q-learning")
+        self.steps_to_update_target_model += 1
+        qValue = np.reshape(qValue, [1, len(qValue)])
+        self.model.fit(state, qValue, epochs=1, verbose=0)
+
+        if(self.steps_to_update_target_model % UPDATE_EVERY ==0):
+            self.update_target_model()
+
+
 
     def update(self, network, alpha=0.5, gamma=0.5, q_max_func=q_max_function, reward_func=reward_function):
         if not len(network.mc.list_request):
@@ -133,8 +149,6 @@ class DQN:
 
         next_action_id = self.choose_next_state(network, self.input_state)
         reward = self.reward[next_action_id]
-        print("reward deep_q_learning with next_action of current_state")
-        print(self.reward_max)
         # update memories temporary
         self.memorize(self.input_state, next_action_id,
                       reward, self.input_state)
@@ -151,9 +165,9 @@ class DQN:
 
         # training experience replay with
         self.training_replay()
-
         print("update weights: ", self.steps_to_update_target_model)
+        if self.steps_to_update_target_model % 100 == 0:
+            self.save_model()
         print("next state =({}), {}, charging_time: {}).".format(
             self.action_list[self.state], self.state, charging_time))
-
         return self.action_list[self.state], charging_time

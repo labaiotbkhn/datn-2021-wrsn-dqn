@@ -16,6 +16,8 @@ class Q_learning:
         self.reward_max = [0.0 for _ in self.action_list]
         self.input_state_dqn = None
         self.reward_dqn = 0
+        self.q_value_for_dqn = [0.0 for _ in self.action_list]
+        
 
     def update(self, network, alpha=0.5, gamma=0.5, q_max_func=q_max_function, reward_func=reward_function):
 
@@ -23,14 +25,12 @@ class Q_learning:
             return self.action_list[self.state], 0.0
         self.input_state_dqn = _build_input_state(network)
         self.set_reward(reward_func=reward_func, network=network)
-        print("all reward Q_learning with all action to current_state")
-        print(self.reward_max)
-
-        # calculate reward for next_action with previous state
-        self.reward_dqn = self.reward[self.state]
-
+        
         self.q_table[self.state] = (1 - alpha) * self.q_table[self.state] + alpha * (
             self.reward + gamma * self.q_max(q_max_func))
+        #update q-value for DQN with state
+        self.q_value_for_dqn = self.q_table[self.state]
+        
         # choose action <=> next_state of MC
         self.choose_next_state(network)
         # calculate reward for next_action with current_state => update memory deep_qlearning

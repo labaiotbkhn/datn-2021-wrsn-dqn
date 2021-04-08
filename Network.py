@@ -67,13 +67,12 @@ class Network:
             t = t + 1
             if (t-1) % 100 == 0:
                 print(t, self.mc.current,
-                      self.node[self.find_min_node()].energy)
-                self.check_top_number_nodes(10)
+                      self.node[self.find_min_node()].energy, self.node[self.find_min_node()].location)
             state = self.run_per_second(t, optimizer, deep_optimizer)
             if not (t - 1) % 50:
                 writer.writerow(
                     {"time": t, "mc energy": self.mc.energy, "min energy": self.node[self.find_min_node()].energy})
-        print(t, self.mc.current, self.node[self.find_min_node()].energy)
+        print(t, self.mc.current, self.node[self.find_min_node()].energy, self.node[self.find_min_node()].location)
         writer.writerow({"time": t, "mc energy": self.mc.energy,
                          "min energy": self.node[self.find_min_node()].energy})
         energy_log.close()
@@ -92,8 +91,7 @@ class Network:
             # optimizer.steps_to_update_target_model = t
             if (t-1) % 100 == 0:
                 print(t, self.mc.current,
-                      self.node[self.find_min_node()].energy)
-                self.check_top_number_nodes(10)
+                      self.node[self.find_min_node()].energy, self.node[self.find_min_node()].location)
             state = self.run_per_second(t, optimizer, deep_optimizer)
             current_dead = self.count_dead_node()
             current_package = self.count_package()
