@@ -4,6 +4,7 @@ from scipy.spatial import distance
 import Parameter as para
 from MobileCharger_Method import get_location, charging
 import numpy as np
+import random
 
 
 class MobileCharger:
@@ -47,28 +48,43 @@ class MobileCharger:
         else:
             self.is_self_charge = False
 
-    def get_next_location(self, network, time_stem, optimizer=None, deep_optimizer=None):
-        if deep_optimizer.steps_to_update_target_model > 300:
-            print("Update with deep Q learning")
-            next_location, charging_time = deep_optimizer.update(network)
-        # collect state for DQN and switch to use DQN if len(memmories) > 30
-        else:
-            print("Q learning update")
+    def choice_optimizer(self, network, index_optimizer, optimizer=None, deep_optimizer=None,):
+        if index_optimizer == 1:
+            print("Q learning update", deep_optimizer.steps_to_update_target_model)
             next_location, charging_time = optimizer.update(network)
+            
             next_state_last_memories_dqn = optimizer.input_state_dqn
             next_state_last_memories_dqn = np.reshape(next_state_last_memories_dqn, [
                                                       1, deep_optimizer.state_size])
             # update last_memory
-
             updateNextAction(
                 deep_optimizer, next_state_last_memories_dqn)
             updateMemories(optimizer, deep_optimizer)
-            if deep_optimizer.steps_to_update_target_model > 200:
-                deep_optimizer.training_replay()
-            else:
-                deep_optimizer.updateWeightFromQLearning(next_state_last_memories_dqn, optimizer.q_value_for_dqn)
 
+            deep_optimizer.updateWeightFromQLearning(
+                next_state_last_memories_dqn, optimizer.q_value_for_dqn)
+            
+            return next_location, charging_time
+        else:
+            print("Update with DQN", deep_optimizer.steps_to_update_target_model)
+            next_location, charging_time = deep_optimizer.update(network)
+            return next_location, charging_time
 
+    def get_next_location(self, network, time_stem, optimizer=None, deep_optimizer=None):
+        list_optimizer = [1, 2]  # 1 - Qlearning; 2-DeepLearning
+        index_optimizer = 1
+        if deep_optimizer.steps_to_update_target_model < 300:
+            index_optimizer = 1
+        elif deep_optimizer.steps_to_update_target_model >= 300 and deep_optimizer.steps_to_update_target_model < 500:
+            index_optimizer = random.choices(
+                list_optimizer, weights=(75, 25), k=1)[0]
+        elif deep_optimizer.steps_to_update_target_model >= 500 and deep_optimizer.steps_to_update_target_model < 650:
+            index_optimizer = random.choices(
+                list_optimizer, weights=(50, 50), k=1)[0]
+        else:
+            index_optimizer = 2
+        next_location, charging_time = self.choice_optimizer(
+            network, index_optimizer, optimizer, deep_optimizer)
         self.start = self.current
         self.end = next_location
         moving_time = distance.euclidean(self.start, self.end) / self.velocity

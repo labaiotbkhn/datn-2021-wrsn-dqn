@@ -72,7 +72,8 @@ class Network:
             if not (t - 1) % 50:
                 writer.writerow(
                     {"time": t, "mc energy": self.mc.energy, "min energy": self.node[self.find_min_node()].energy})
-        print(t, self.mc.current, self.node[self.find_min_node()].energy, self.node[self.find_min_node()].location)
+        print(t, self.mc.current, self.node[self.find_min_node(
+        )].energy, self.node[self.find_min_node()].location)
         writer.writerow({"time": t, "mc energy": self.mc.energy,
                          "min energy": self.node[self.find_min_node()].energy})
         energy_log.close()

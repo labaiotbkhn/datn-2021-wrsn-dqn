@@ -46,7 +46,6 @@ for index in range(1):
 
         # calculate state_size for DQN
         state_size = calculate_state_size_dqn(net)
-        print("state_size: ", state_size)
         deep_qlearning = DQN(state_size=state_size,
                              file_name_model="model.h5", network=net)
 

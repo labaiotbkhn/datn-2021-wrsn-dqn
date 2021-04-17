@@ -1,6 +1,6 @@
 import numpy as np
 from tensorflow import keras
-
+import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Input, Flatten, Conv2D, MaxPooling2D, Dense
 from tensorflow.keras.models import Sequential
@@ -10,8 +10,9 @@ from Q_learning_method import *
 from utils import _build_input_state, updateNextAction
 from tensorflow.python.keras.optimizer_v2.rmsprop import RMSprop
 from tensorflow.python.keras.optimizer_v2.adam import Adam
-UPDATE_EVERY = 4
+from tensorflow.keras import backend as K
 
+UPDATE_EVERY = 20
 
 
 class DQN:
@@ -20,9 +21,8 @@ class DQN:
         self.state = nb_action
 
         self.charging_time = [0.0 for _ in self.action_list]
-        self.reward = 0
         self.reward_max = [0.0 for _ in self.action_list]
-        self.learning_rate = 1e-4
+        self.learning_rate = 1e-3
         self.memory = deque(maxlen=2000)
         self.epsilon = epsilon  # exploration rate
         self.discount_factor = discount_factor  # discount rate
@@ -38,20 +38,31 @@ class DQN:
         self.target_model = self._build_model()
         self.reward = np.asarray([0.0 for _ in self.action_list])
         self.reward_max = [0.0 for _ in self.action_list]
+        self.q_value = [0.0 for _ in self.action_list]
+
+    def _huber_loss(self, y_true, y_pred, clip_delta=1.0):
+        error = y_true - y_pred
+        cond = K.abs(error) <= clip_delta
+
+        squared_loss = 0.5 * K.square(error)
+        quadratic_loss = 0.5 * \
+            K.square(clip_delta) + clip_delta * (K.abs(error) - clip_delta)
+        return K.mean(tf.where(cond, squared_loss, quadratic_loss))
 
     def _build_model(self):
         model = Sequential()
         model.add(Dense(128, input_dim=self.state_size, activation="relu"))
-        model.add(Dense(128, activation="relu",  kernel_initializer='he_uniform'))
-        model.add(Dense(64, activation="relu",  kernel_initializer='he_uniform'))
-        model.add(Dense(self.action_size, activation="linear",  kernel_initializer='he_uniform'))
-        model.compile(loss=keras.losses.Huber(delta=1, reduction=keras.losses.Reduction.SUM), optimizer=Adam(learning_rate=self.learning_rate))
+        model.add(Dense(128, activation="relu"))
+        model.add(Dense(64, activation="relu"))
+        model.add(Dense(self.action_size, activation="linear"))
+        model.compile(loss=self._huber_loss, optimizer=Adam(
+            learning_rate=self.learning_rate))
         return model
 
     def update_target_model(self):
         # copy weights from Main model to Target model
         self.target_model.set_weights(self.model.get_weights())
-    
+
     def save_model(self):
         self.model.save_weights(filepath=self.file_name_model)
 
@@ -65,13 +76,20 @@ class DQN:
         if network.mc.energy < 10:
             return len(self.q_table) - 1
 
-        if np.random.rand() <= self.epsilon:
-            print("choosing with random")
-            return random.randrange(self.action_size)
+        # if np.random.rand() <= self.epsilon:
+        #     print("choosing with random")
+        #     return random.randrange(self.action_size)
         act_values = self.model.predict(state)
-        print("Q-value from deep Q learning: ", act_values)
+        self.q_value = act_values[0]
+        print("Q-value from deep Q learning: ", self.q_value)
 
-        return np.argmax(act_values[0])
+        # update action with custom policy
+        epsilon_deep_value = 0.5
+        if np.max(self.q_value) > (1+epsilon_deep_value) * abs(np.mean(self.q_value)):
+            print("Chosing with DQN value: ", np.argmax(act_values[0]))
+            return np.argmax(act_values[0])
+        print("Chosing with Reward value: ", self.reward)
+        return np.argmax(self.reward)
 
     def experience_replay(self, batch_size):
         # get minibatch memories from 0 => last memory -1
@@ -121,16 +139,15 @@ class DQN:
         third = third / np.sum(third)
         self.reward = first + second + third
         self.reward_max = list(zip(first, second, third))
+
     def updateWeightFromQLearning(self, state, qValue):
-        print("update weights deep NN from q-learning")
+        print("update weights deep NN from q-learning",
+              self.steps_to_update_target_model)
         self.steps_to_update_target_model += 1
         qValue = np.reshape(qValue, [1, len(qValue)])
         self.model.fit(state, qValue, epochs=1, verbose=0)
-
-        if(self.steps_to_update_target_model % UPDATE_EVERY ==0):
+        if(self.steps_to_update_target_model % UPDATE_EVERY == 0):
             self.update_target_model()
-
-
 
     def update(self, network, alpha=0.5, gamma=0.5, q_max_func=q_max_function, reward_func=reward_function):
         if not len(network.mc.list_request):
@@ -142,8 +159,8 @@ class DQN:
         # calculate reward for next_action in  current_state
         self.set_reward(reward_func=reward_func, network=network)
 
-        print("all reward deep_q_learning of current_state")
-        print(self.reward_max)
+        # print("all reward deep_q_learning of current_state")
+        # print(self.reward_max)
         # update next_state + reward in last memories:
         updateNextAction(self, self.input_state)
 
@@ -166,7 +183,7 @@ class DQN:
         # training experience replay with
         self.training_replay()
         print("update weights: ", self.steps_to_update_target_model)
-        if self.steps_to_update_target_model % 100 == 0:
+        if (self.steps_to_update_target_model-1) % 50 == 0:
             self.save_model()
         print("next state =({}), {}, charging_time: {}).".format(
             self.action_list[self.state], self.state, charging_time))

@@ -9,12 +9,12 @@ import Fuzzy
 
 
 def q_max_function(q_table, state):
-    temp = [max(row) if index != state else -float("inf")
+    temp = [max(row) if index != state else -10
             for index, row in enumerate(q_table)]
     return np.asarray(temp)
 
 
-def reward_function(network, q_learning, state, receive_func=find_receiver):
+def reward_function(network, q_learning, state, alpha=0.1, receive_func=find_receiver):
     """
     calculate each part of reward
     :param network:
@@ -23,24 +23,6 @@ def reward_function(network, q_learning, state, receive_func=find_receiver):
     :param receive_func:
     :return: each part of reward and charging time when mc stand at state
     """
-
-    # fuzzy logic to find alpha
-    d = [distance.euclidean(item.location, q_learning.action_list[state]) for item in
-         network.node]
-    p = [para.alpha / (item + para.beta) ** 2 for item in d]
-    index_negative = [index for index, node in enumerate(
-        network.node) if p[index] < node.avg_energy]
-    E = np.asarray([network.node[index].energy for index in index_negative])
-    pe = np.asarray(
-        [p[index] / network.node[index].avg_energy for index in index_negative])
-    if len(index_negative):
-        min_E = min(E)
-        min_pe = min(pe)
-    else:
-        min_E = min([node.energy for node in network.node])
-        min_pe = 1.0
-    alpha = Fuzzy.get_output(min_E, len(index_negative), min_pe)
-
     # get charing time, find full path
     charging_time = get_charging_time(network, q_learning, state, alpha)
     w, nb_target_alive = get_weight(
@@ -218,5 +200,11 @@ def get_charging_time(network=None, q_learning=None, state=None, alpha=0):
             if temp < energy_min:
                 nb_dead += 1
         dead_list.append(nb_dead)
-    arg_min = np.argmin(dead_list)
+    if len(dead_list) !=0:
+
+        arg_min = np.argmin(dead_list)
+    else:
+        arg_min = 0
+    if len(t) ==0:
+        return 0
     return t[arg_min]

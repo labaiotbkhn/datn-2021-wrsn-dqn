@@ -26,14 +26,14 @@ def _build_input_state(network):
     energies = [nd.energy for nd in network.node]
 
     avg_energies = [nd.avg_energy for nd in network.node]
-    max_energy = max(energies)
-    min_energy = min(energies)
-    max_avg = max(avg_energies)
-    min_avg = min(avg_energies)
+    # max_energy = max(energies)
+    # min_energy = min(energies)
+    # max_avg = max(avg_energies)
+    # min_avg = min(avg_energies)
 
-    list_energy_normalize = [(nd.energy / max_energy )  for nd in network.node]
-    list_avg_energy_normalize = [(nd.avg_energy / max_avg) for nd in network.node]
+    # list_energy_normalize = [(nd.energy / max_energy )  for nd in network.node]
+    # list_avg_energy_normalize = [(nd.avg_energy / max_avg) for nd in network.node]
 
-    list_state.extend(list_energy_normalize)
-    list_state.extend(list_avg_energy_normalize)
+    list_state.extend(energies)
+    list_state.extend(avg_energies)
     return np.array(list_state)

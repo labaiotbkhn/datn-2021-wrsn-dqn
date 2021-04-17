@@ -29,15 +29,11 @@ class Q_learning:
         self.q_table[self.state] = (1 - alpha) * self.q_table[self.state] + alpha * (
             self.reward + gamma * self.q_max(q_max_func))
         #update q-value for DQN with state
-        self.q_value_for_dqn = self.q_table[self.state]
-        
+        self.q_value_for_dqn = self.q_table[self.state]   
         # choose action <=> next_state of MC
         self.choose_next_state(network)
         # calculate reward for next_action with current_state => update memory deep_qlearning
         self.reward_dqn = self.reward[self.state]
-        print("reward Q_learning with next_action to current_state")
-        print(self.reward_max[self.state])
-
         if self.state == len(self.action_list) - 1:
             charging_time = (network.mc.capacity -
                              network.mc.energy) / network.mc.e_self_charge
