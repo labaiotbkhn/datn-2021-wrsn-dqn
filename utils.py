@@ -11,6 +11,7 @@ def updateMemories(q_learning, deep_qlearning):
     # update temporary memories
     deep_qlearning.memorize(input_state_dqn, next_action,
                             reward, input_state_dqn)
+    
 
 
 def updateNextAction(deep_qlearning, next_state):
@@ -18,6 +19,12 @@ def updateNextAction(deep_qlearning, next_state):
         last_memory = list(deep_qlearning.memory[-1])
         last_memory[3] = next_state
         deep_qlearning.memory[-1] = tuple(last_memory)
+
+        # state, action, reward, next_state
+        last_piority = deep_qlearning.priority[-1]
+        last_piority = deep_qlearning.prioritize(
+            last_memory[0], next_state, last_memory[1], last_memory[2], alpha=0.6)
+        deep_qlearning.priority[-1] = last_piority
 
 
 def _build_input_state(network):

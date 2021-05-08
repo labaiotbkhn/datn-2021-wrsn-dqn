@@ -11,19 +11,20 @@ from utils import _build_input_state, updateNextAction
 from tensorflow.python.keras.optimizer_v2.rmsprop import RMSprop
 from tensorflow.python.keras.optimizer_v2.adam import Adam
 from tensorflow.keras import backend as K
-
-UPDATE_EVERY = 20
+import random
+UPDATE_EVERY = 10
 
 
 class DQN:
-    def __init__(self, state_size, file_name_model, nb_action=81, action_func=action_function, network=None, epsilon=1, epsilon_decay=0.995, epsilon_min=0.01, batch_size=32, discount_factor=0.99, num_of_episodes=500):
+    def __init__(self, state_size, file_name_model, nb_action=81, action_func=action_function, network=None, epsilon=1, epsilon_decay=0.8, epsilon_min=0.01, batch_size=32, discount_factor=0.99, num_of_episodes=500):
         self.action_list = action_func(nb_action=nb_action)
         self.state = nb_action
 
         self.charging_time = [0.0 for _ in self.action_list]
         self.reward_max = [0.0 for _ in self.action_list]
         self.learning_rate = 1e-3
-        self.memory = deque(maxlen=2000)
+        self.memory = deque(maxlen=5000)
+        self.priority = deque(maxlen=5000)
         self.epsilon = epsilon  # exploration rate
         self.discount_factor = discount_factor  # discount rate
         self.epsilon_min = epsilon_min
@@ -32,13 +33,14 @@ class DQN:
         self.action_size = len(self.action_list)
         self.file_name_model = file_name_model
         self.input_state = None
-        self.batch_size = 32
+        self.batch_size = 64
         self.steps_to_update_target_model = 0
         self.model = self._build_model()
         self.target_model = self._build_model()
         self.reward = np.asarray([0.0 for _ in self.action_list])
         self.reward_max = [0.0 for _ in self.action_list]
         self.q_value = [0.0 for _ in self.action_list]
+        self.time_chosing_by_reward = 0
 
     def _huber_loss(self, y_true, y_pred, clip_delta=1.0):
         error = y_true - y_pred
@@ -49,11 +51,43 @@ class DQN:
             K.square(clip_delta) + clip_delta * (K.abs(error) - clip_delta)
         return K.mean(tf.where(cond, squared_loss, quadratic_loss))
 
+    def chosing_action_with_qValue(self, qvalues):
+        indices = sorted(range(len(qvalues)),
+                         key=lambda k: qvalues[k], reverse=True)
+        i = 0
+        current_list = []
+        current_indices = []
+        max_value = qvalues[indices[0]]
+        current_value = qvalues[indices[0]]
+        while current_value < 0.8 * max_value:
+            current_list.append(current_value)
+            current_indices.append(indices[i])
+            i += 1
+            current_value = qvalues[indices[i]]
+
+        return current_indices
+
+    def chosing_action_with_reward(self, reward):
+        indices = sorted(range(len(reward)),
+                         key=lambda k: reward[k], reverse=True)
+        i = 0
+        current_list = []
+        current_indices = []
+        max_value = reward[indices[0]]
+        current_value = reward[indices[0]]
+        while current_value < 0.8 * max_value:
+            current_list.append(current_value)
+            current_indices.append(indices[i])
+            i += 1
+            current_value = reward[indices[i]]
+
+        return current_indices
+
     def _build_model(self):
         model = Sequential()
-        model.add(Dense(128, input_dim=self.state_size, activation="relu"))
+        model.add(Dense(256, input_dim=self.state_size, activation="relu"))
         model.add(Dense(128, activation="relu"))
-        model.add(Dense(64, activation="relu"))
+        model.add(Dense(128, activation="relu"))
         model.add(Dense(self.action_size, activation="linear"))
         model.compile(loss=self._huber_loss, optimizer=Adam(
             learning_rate=self.learning_rate))
@@ -66,37 +100,94 @@ class DQN:
     def save_model(self):
         self.model.save_weights(filepath=self.file_name_model)
 
+    # update with replay training with piority
+    def prioritize(self, state, next_state, action, reward, alpha=0.6):
+        q_next = reward + self.discount_factor * \
+            np.max(self.target_model.predict(next_state)[0])
+        q = self.model.predict(state)[0][action]
+        p = (np.abs(q_next-q) + (np.e ** -10)) ** alpha
+        return p
+
+    def get_priority_experience_batch(self):
+        piorities_before_last = collections.deque(
+            itertools.islice(self.priority, 0, len(self.priority)-1))
+        p_sum = np.sum(piorities_before_last)
+        prob = piorities_before_last / p_sum
+        sample_indices = random.choices(
+            range(len(prob)), k=self.batch_size, weights=prob)
+        importance = (1/prob) * (1/len(piorities_before_last))
+        importance = np.array(importance)[sample_indices]
+        samples = np.array(self.memory)[sample_indices]
+        return samples, importance
+
     def memorize(self, state, action, reward, next_state):
         # update memory in Experience Replay
         self.memory.append((state, action, reward, next_state))
+        self.priority.append(0)
         pass
+
+    def create_relative_reward_qvalues(self, qvalues):
+        sum_qvalue = sum(qvalues)
+        sum_reward = sum(self.reward)
+
+        normalize_reward = [r / sum_reward for r in self.reward]
+        normalize_qvalue = [q / sum_qvalue for q in qvalues]
+
+        list_weights = []
+        for i in range(len(normalize_qvalue)):
+            list_weights.append(normalize_qvalue[i] * normalize_reward[i])
+        return list_weights
 
     def choose_next_state(self, network, state):
         # next_state = np.argmax(self.q_table[self.state])
         if network.mc.energy < 10:
-            return len(self.q_table) - 1
+            return len(self.q_value) - 1
+        act_values = self.model.predict(state)
+        q_value = act_values[0]
+        indices = sorted(range(len(q_value)),
+                         key=lambda k: q_value[k], reverse=True)
+
+        # five with element have largest qvalue
+        max_reward = max(self.reward)
+        chossing_indices = []
+        for indice in indices[:5]:
+            if(self.reward[indice] > 0.6 * max_reward):
+                chossing_indices.append(indice)
+        if len(chossing_indices) > 0:
+            # max_reward = 0
+            # index = 0
+            # for indice_reward in chossing_indices:
+            #     if self.reward[indice_reward] > max_reward:
+            #         index = indice_reward
+            #         max_reward = self.reward[indice_reward]
+            index = random.choices(
+                population=chossing_indices, weights=self.reward[chossing_indices], k=1)[0]
+            print("Chosing with Q_value from DQN: ", index)
+            return index
+        else:
+            index = np.argmax(self.reward)
+            print("Chosing with Q_value from Reward: ", index)
+            return index
+        return np.argmax(q_value)
 
         # if np.random.rand() <= self.epsilon:
         #     print("choosing with random")
         #     return random.randrange(self.action_size)
-        act_values = self.model.predict(state)
-        self.q_value = act_values[0]
-        print("Q-value from deep Q learning: ", self.q_value)
+        # act_values = self.model.predict(state)
+        # q_value = act_values[0]
+        # weights = self.create_relative_reward_qvalues(q_value)
 
-        # update action with custom policy
-        epsilon_deep_value = 0.5
-        if np.max(self.q_value) > (1+epsilon_deep_value) * abs(np.mean(self.q_value)):
-            print("Chosing with DQN value: ", np.argmax(act_values[0]))
-            return np.argmax(act_values[0])
-        print("Chosing with Reward value: ", self.reward)
-        return np.argmax(self.reward)
+        # return np.argmax(weights)
+
+        # if np.max(q_value) > (1+epsilon_deep_value) * second_value:
 
     def experience_replay(self, batch_size):
         # get minibatch memories from 0 => last memory -1
-        minibatch = random.sample(collections.deque(
-            itertools.islice(self.memory, 0, len(self.memory)-1)), batch_size)
+        print("training with experience, with priority")
+        batch, importance = self.get_priority_experience_batch()
 
-        for state, action, reward, next_state in minibatch:
+        for b, i in zip(batch, importance):
+            state, action, reward, next_state = b
 
             target = self.model.predict(state)
             t = self.target_model.predict(next_state)[0]
@@ -166,6 +257,7 @@ class DQN:
 
         next_action_id = self.choose_next_state(network, self.input_state)
         reward = self.reward[next_action_id]
+        print("reward for next_action: {}".format(reward))
         # update memories temporary
         self.memorize(self.input_state, next_action_id,
                       reward, self.input_state)
@@ -179,6 +271,8 @@ class DQN:
                              network.mc.energy) / network.mc.e_self_charge
         else:
             charging_time = self.charging_time[next_action_id]
+        if charging_time > 8000:
+            charging_time *= 0.65
 
         # training experience replay with
         self.training_replay()

@@ -1,12 +1,9 @@
-import random
+import matplotlib.pyplot as plt
+plt.axis([0, 10, 0, 10])
 
 
-temp = []
-nb = 299
-for i in range(300):
-    r = random.randint(0, nb)
-    while r in temp:
-        r = random.randint(0, nb)
-    temp.append(r)
+for i in range(10):
+    plt.scatter(i, i + 1)
+    plt.pause(0.5)
 
-print(temp)
+plt.show()

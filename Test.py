@@ -9,7 +9,7 @@ from DQN import DQN
 from Inma import Inma
 import csv
 from scipy.stats import sem, t
-from scipy import mean
+import numpy as np
 
 
 def calculate_state_size_dqn(network):
@@ -21,10 +21,11 @@ def calculate_state_size_dqn(network):
 df = pd.read_csv("data/thaydoitileguitin.csv")
 for index in range(1):
     chooser_alpha = open("log/q_learning_confident3.csv", "w")
+    f = open("result.txt", "w+")
     result = csv.DictWriter(chooser_alpha, fieldnames=["nb run", "lifetime"])
     result.writeheader()
     life_time = []
-    for nb_run in range(10):
+    for nb_run in range(5):
         random.seed(nb_run)
 
         node_pos = list(literal_eval(df.node_pos[index]))
@@ -51,12 +52,16 @@ for index in range(1):
 
         # inma = Inma()
         # q_learning = DQN(state_size=2,file_name_model="model.h5", network=net)
-        file_name = "log/q_learning_" + str(index) + ".csv"
+        file_name = "log/q_learning_" + str(nb_run) + ".csv"
         temp = net.simulate(optimizer=q_learning,
                             file_name=file_name, deep_optimizer=deep_qlearning)
         life_time.append(temp)
         result.writerow({"nb run": nb_run, "lifetime": temp})
+        f.write("nb run: {}; lifetime: {}".format(nb_run, temp))
 
     confidence = 0.95
     h = sem(life_time) * t.ppf((1 + confidence) / 2, len(life_time) - 1)
-    result.writerow({"nb run": mean(life_time), "lifetime": h})
+    result.writerow({"nb run": np.mean(life_time), "lifetime": h})
+    f.write("nb run: {}; lifetime: {}".format(np.mean(life_time), h))
+    print(np.mean(life_time))
+    print(h)

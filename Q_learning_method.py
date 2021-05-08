@@ -9,12 +9,12 @@ import Fuzzy
 
 
 def q_max_function(q_table, state):
-    temp = [max(row) if index != state else -10
+    temp = [max(row) if index != state else -2
             for index, row in enumerate(q_table)]
     return np.asarray(temp)
 
 
-def reward_function(network, q_learning, state, alpha=0.1, receive_func=find_receiver):
+def reward_function(network, q_learning, state, alpha=0.12, receive_func=find_receiver):
     """
     calculate each part of reward
     :param network:
@@ -200,11 +200,11 @@ def get_charging_time(network=None, q_learning=None, state=None, alpha=0):
             if temp < energy_min:
                 nb_dead += 1
         dead_list.append(nb_dead)
-    if len(dead_list) !=0:
+    if len(dead_list) != 0:
 
         arg_min = np.argmin(dead_list)
     else:
         arg_min = 0
-    if len(t) ==0:
+    if len(t) == 0:
         return 0
     return t[arg_min]

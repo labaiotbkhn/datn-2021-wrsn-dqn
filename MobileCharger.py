@@ -27,6 +27,12 @@ class MobileCharger:
 
         self.list_request = []
 
+        self.epsilon = 1.0                 # Exploration rate
+        self.max_epsilon = 1.0             # Exploration probability at start
+        self.min_epsilon = 0.05            # Minimum exploration probability
+        self.epsilon_decay = 0.99
+        self.time_to_move = 0
+
     def update_location(self, func=get_location):
         self.current = func(self)
         self.energy -= self.e_move
@@ -52,7 +58,7 @@ class MobileCharger:
         if index_optimizer == 1:
             print("Q learning update", deep_optimizer.steps_to_update_target_model)
             next_location, charging_time = optimizer.update(network)
-            
+
             next_state_last_memories_dqn = optimizer.input_state_dqn
             next_state_last_memories_dqn = np.reshape(next_state_last_memories_dqn, [
                                                       1, deep_optimizer.state_size])
@@ -60,10 +66,13 @@ class MobileCharger:
             updateNextAction(
                 deep_optimizer, next_state_last_memories_dqn)
             updateMemories(optimizer, deep_optimizer)
+            if deep_optimizer.steps_to_update_target_model < 100:
 
-            deep_optimizer.updateWeightFromQLearning(
-                next_state_last_memories_dqn, optimizer.q_value_for_dqn)
-            
+                deep_optimizer.updateWeightFromQLearning(
+                    next_state_last_memories_dqn, optimizer.q_value_for_dqn)
+            else:
+                deep_optimizer.training_replay()
+
             return next_location, charging_time
         else:
             print("Update with DQN", deep_optimizer.steps_to_update_target_model)
@@ -73,21 +82,25 @@ class MobileCharger:
     def get_next_location(self, network, time_stem, optimizer=None, deep_optimizer=None):
         list_optimizer = [1, 2]  # 1 - Qlearning; 2-DeepLearning
         index_optimizer = 1
-        if deep_optimizer.steps_to_update_target_model < 300:
+        if deep_optimizer.steps_to_update_target_model < 100:
             index_optimizer = 1
-        elif deep_optimizer.steps_to_update_target_model >= 300 and deep_optimizer.steps_to_update_target_model < 500:
-            index_optimizer = random.choices(
-                list_optimizer, weights=(75, 25), k=1)[0]
-        elif deep_optimizer.steps_to_update_target_model >= 500 and deep_optimizer.steps_to_update_target_model < 650:
-            index_optimizer = random.choices(
-                list_optimizer, weights=(50, 50), k=1)[0]
         else:
-            index_optimizer = 2
+            # update target model
+            # deep_optimizer.target_model = deep_optimizer.model
+            exp_exp_tradeoff = random.uniform(0, 1)
+            if exp_exp_tradeoff > self.epsilon:
+                index_optimizer = 2
+            else:
+                index_optimizer = random.choices(
+                    list_optimizer, weights=(50, 50), k=1)[0]
+            if self.epsilon > self.min_epsilon:
+                self.epsilon *= self.epsilon_decay
         next_location, charging_time = self.choice_optimizer(
             network, index_optimizer, optimizer, deep_optimizer)
         self.start = self.current
         self.end = next_location
         moving_time = distance.euclidean(self.start, self.end) / self.velocity
+        self.time_to_move = moving_time + charging_time
         self.end_time = time_stem + moving_time + charging_time
 
     def run(self, network, time_stem, net=None, optimizer=None, deep_optimizer=None):

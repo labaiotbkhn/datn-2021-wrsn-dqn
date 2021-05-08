@@ -17,19 +17,18 @@ class Q_learning:
         self.input_state_dqn = None
         self.reward_dqn = 0
         self.q_value_for_dqn = [0.0 for _ in self.action_list]
-        
 
-    def update(self, network, alpha=0.5, gamma=0.5, q_max_func=q_max_function, reward_func=reward_function):
+    def update(self, network, alpha=0.6, gamma=0.5, q_max_func=q_max_function, reward_func=reward_function):
 
         if not len(network.mc.list_request):
             return self.action_list[self.state], 0.0
         self.input_state_dqn = _build_input_state(network)
         self.set_reward(reward_func=reward_func, network=network)
-        
+
         self.q_table[self.state] = (1 - alpha) * self.q_table[self.state] + alpha * (
             self.reward + gamma * self.q_max(q_max_func))
-        #update q-value for DQN with state
-        self.q_value_for_dqn = self.q_table[self.state]   
+        # update q-value for DQN with state
+        self.q_value_for_dqn = self.q_table[self.state]
         # choose action <=> next_state of MC
         self.choose_next_state(network)
         # calculate reward for next_action with current_state => update memory deep_qlearning
@@ -39,6 +38,8 @@ class Q_learning:
                              network.mc.energy) / network.mc.e_self_charge
         else:
             charging_time = self.charging_time[self.state]
+        if charging_time > 10000:
+            charging_time *= 0.7
         print("next state =",
               self.action_list[self.state], self.state, charging_time)
         # print(self.charging_time)
@@ -69,8 +70,6 @@ class Q_learning:
         if network.mc.energy < 10:
             self.state = len(self.q_table) - 1
         else:
-            print(
-                "Q-value of Q-learning method :{}".format(self.q_table[self.state]))
             self.state = np.argmax(self.q_table[self.state])
             # print(self.reward_max[self.state])
             # print(self.action_list[self.state])
