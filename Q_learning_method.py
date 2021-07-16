@@ -5,7 +5,6 @@ from scipy.spatial import distance
 
 import Parameter as para
 from Node_Method import find_receiver
-import Fuzzy
 
 
 def q_max_function(q_table, state):
@@ -14,7 +13,7 @@ def q_max_function(q_table, state):
     return np.asarray(temp)
 
 
-def reward_function(network, q_learning, state, alpha=0.12, receive_func=find_receiver):
+def reward_function(network, q_learning, state, alpha=0.1, receive_func=find_receiver):
     """
     calculate each part of reward
     :param network:

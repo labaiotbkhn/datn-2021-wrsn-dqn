@@ -73,22 +73,22 @@ class Network:
                                 "time", "mc energy", "min energy"])
         writer.writeheader()
         t = 0
-        x, y = self.create_point_to_plot()
+        # x, y = self.create_point_to_plot()
 
-        while self.node[self.find_min_node()].energy >= 0:
+        while self.count_package() < len(self.target):
             t = t + 1
 
             if (t-1) % 100 == 0:
                 print(t, self.mc.current,
                       self.node[self.find_min_node()].energy, self.node[self.find_min_node()].location)
-                plt.clf()
-                plt.scatter(x, y, c="red", label="location Node")
-                x_mc, y_mc = self.mc.current
-                plt.scatter(x_mc, y_mc, c="blue", label="location MC")
-                plt.scatter(self.node[self.find_min_node(
-                )].location[0], self.node[self.find_min_node()].location[1], c="yellow", label="location lowest energy node")
-                plt.legend(loc='best')
-                plt.pause(0.01)
+                # plt.clf()
+                # plt.scatter(x, y, c="red", label="location Node")
+                # x_mc, y_mc = self.mc.current
+                # plt.scatter(x_mc, y_mc, c="blue", label="location MC")
+                # plt.scatter(self.node[self.find_min_node(
+                # )].location[0], self.node[self.find_min_node()].location[1], c="yellow", label="location lowest energy node")
+                # plt.legend(loc='best')
+                # plt.pause(0.01)
             state = self.run_per_second(t, optimizer, deep_optimizer)
 
             if not (t - 1) % 50:

@@ -13,12 +13,14 @@ class Inma:
         if not len(request_list):
             return network.mc.current, 0
         id_list = np.asarray([request["id"] for request in request_list])
-        t = [(network.node[request["id"]].energy / request["avg_energy"]) for request in request_list]
+        t = [(network.node[request["id"]].energy / request["avg_energy"])
+             for request in request_list]
         time_move = np.asarray([distance.euclidean(network.mc.current, network.node[request["id"]].location) / network.mc.velocity
-                     for request in request_list])
+                                for request in request_list])
         p = para.alpha / para.beta ** 2
         time_charge = np.asarray([
-            (network.node[request["id"]].energy_max - network.node[request["id"]].energy) / (p - request["avg_energy"])
+            (network.node[request["id"]].energy_max -
+             network.node[request["id"]].energy) / (p - request["avg_energy"])
             for request in request_list])
         x = time_move + time_charge
         arg_min = np.argmin(x)

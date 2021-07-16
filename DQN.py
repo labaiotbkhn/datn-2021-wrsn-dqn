@@ -51,38 +51,6 @@ class DQN:
             K.square(clip_delta) + clip_delta * (K.abs(error) - clip_delta)
         return K.mean(tf.where(cond, squared_loss, quadratic_loss))
 
-    def chosing_action_with_qValue(self, qvalues):
-        indices = sorted(range(len(qvalues)),
-                         key=lambda k: qvalues[k], reverse=True)
-        i = 0
-        current_list = []
-        current_indices = []
-        max_value = qvalues[indices[0]]
-        current_value = qvalues[indices[0]]
-        while current_value < 0.8 * max_value:
-            current_list.append(current_value)
-            current_indices.append(indices[i])
-            i += 1
-            current_value = qvalues[indices[i]]
-
-        return current_indices
-
-    def chosing_action_with_reward(self, reward):
-        indices = sorted(range(len(reward)),
-                         key=lambda k: reward[k], reverse=True)
-        i = 0
-        current_list = []
-        current_indices = []
-        max_value = reward[indices[0]]
-        current_value = reward[indices[0]]
-        while current_value < 0.8 * max_value:
-            current_list.append(current_value)
-            current_indices.append(indices[i])
-            i += 1
-            current_value = reward[indices[i]]
-
-        return current_indices
-
     def _build_model(self):
         model = Sequential()
         model.add(Dense(256, input_dim=self.state_size, activation="relu"))
@@ -126,18 +94,6 @@ class DQN:
         self.priority.append(0)
         pass
 
-    def create_relative_reward_qvalues(self, qvalues):
-        sum_qvalue = sum(qvalues)
-        sum_reward = sum(self.reward)
-
-        normalize_reward = [r / sum_reward for r in self.reward]
-        normalize_qvalue = [q / sum_qvalue for q in qvalues]
-
-        list_weights = []
-        for i in range(len(normalize_qvalue)):
-            list_weights.append(normalize_qvalue[i] * normalize_reward[i])
-        return list_weights
-
     def choose_next_state(self, network, state):
         # next_state = np.argmax(self.q_table[self.state])
         if network.mc.energy < 10:
@@ -161,7 +117,7 @@ class DQN:
             #         index = indice_reward
             #         max_reward = self.reward[indice_reward]
             index = random.choices(
-                population=chossing_indices, weights=self.reward[chossing_indices], k=1)[0]
+                population=chossing_indices, weights=self.q_value[chossing_indices], k=1)[0]
             print("Chosing with Q_value from DQN: ", index)
             return index
         else:
@@ -271,8 +227,8 @@ class DQN:
                              network.mc.energy) / network.mc.e_self_charge
         else:
             charging_time = self.charging_time[next_action_id]
-        if charging_time > 8000:
-            charging_time *= 0.65
+        # if charging_time > 8000:
+        #     charging_time *= 0.65
 
         # training experience replay with
         self.training_replay()

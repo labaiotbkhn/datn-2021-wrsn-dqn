@@ -80,23 +80,28 @@ class MobileCharger:
             return next_location, charging_time
 
     def get_next_location(self, network, time_stem, optimizer=None, deep_optimizer=None):
-        list_optimizer = [1, 2]  # 1 - Qlearning; 2-DeepLearning
-        index_optimizer = 1
-        if deep_optimizer.steps_to_update_target_model < 100:
+        if deep_optimizer is not None:
+
+            list_optimizer = [1, 2]  # 1 - Qlearning; 2-DeepLearning
             index_optimizer = 1
-        else:
-            # update target model
-            # deep_optimizer.target_model = deep_optimizer.model
-            exp_exp_tradeoff = random.uniform(0, 1)
-            if exp_exp_tradeoff > self.epsilon:
-                index_optimizer = 2
+            if deep_optimizer.steps_to_update_target_model < 100:
+                index_optimizer = 1
             else:
-                index_optimizer = random.choices(
-                    list_optimizer, weights=(50, 50), k=1)[0]
-            if self.epsilon > self.min_epsilon:
-                self.epsilon *= self.epsilon_decay
-        next_location, charging_time = self.choice_optimizer(
-            network, index_optimizer, optimizer, deep_optimizer)
+                # update target model
+                # deep_optimizer.target_model = deep_optimizer.model
+                exp_exp_tradeoff = random.uniform(0, 1)
+                if exp_exp_tradeoff > self.epsilon:
+                    index_optimizer = 2
+                else:
+                    index_optimizer = random.choices(
+                        list_optimizer, weights=(50, 50), k=1)[0]
+                if self.epsilon > self.min_epsilon:
+                    self.epsilon *= self.epsilon_decay
+            next_location, charging_time = self.choice_optimizer(
+                network, index_optimizer, optimizer, deep_optimizer)
+        else:
+            next_location, charging_time = optimizer.update(network=network)
+
         self.start = self.current
         self.end = next_location
         moving_time = distance.euclidean(self.start, self.end) / self.velocity
